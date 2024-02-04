@@ -6,7 +6,7 @@ import google.generativeai as genai
 from langchain.vectorstores import FAISS
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.chains.question_answering import load_qa_chain
-from langchain.prompts import PromptTemplate
+from langchain.prompts import ChatPromptTemplate
 from dotenv import load_dotenv
 import os
 
@@ -35,28 +35,44 @@ def clear_chat_history():
     st.session_state.messages = [
         {"role": "assistant", "content": "upload some pdfs and ask me a question"}]
     
+def user_input(user_question):
+    embeddings = GoogleGenerativeAIEmbeddings(
+        model="models/embedding-001")  # type: ignore
 
+    new_db = FAISS.load_local("faiss_index", embeddings)
+    docs = new_db.similarity_search(user_question)
+
+    chain = ask_question()
+
+    response = chain(
+        {"input_documents": docs, "question": user_question}, return_only_outputs=True, )
+
+    print(response)
+    return response
 
 with st.sidebar:
         st.title("Upload:")
         pdf_docs = st.file_uploader(
-            "Upload your PDF Files and Click on the Submit & Process Button", accept_multiple_files=True)
+            "Upload your PDF Files and Click on the Submit & Process Button", accept_multiple_files=True, type="pdf")
         if st.button("Start"):
-            # with st.spinner("Processing..."):
-            raw_text = convert_to_txt(pdf_docs)
-            text_chunks = convert_text_chunk(raw_text)
-            convert_to_vector(text_chunks)
-            st.success("Start Asking Questions")
+            with st.spinner("Processing..."):
+                raw_text = convert_to_txt(pdf_docs)
+                text_chunks = convert_text_chunk(raw_text)
+                convert_to_vector(text_chunks)
+                st.success("Start Asking Questions")
 st.title("Open pdfs and ask questions :book:")
+if pdf_docs:
+    #  st.write("You have uploaded", len(pdf_docs), "pdfs")
+     st.write(f"You are asking from pdf : {pdf_docs[0].name}")
 # st.write("Welcome to the chat!")
 st.sidebar.button('Clear Chat History', on_click=clear_chat_history)
 
 if "messages" not in st.session_state.keys():
-    st.session_state.messages = [
-        {"role": "assistant", "content": "upload any book or pdf and ask"}]
+    st.session_state.messages = [{"role": "assistant", "content": "upload any book or pdf and ask"}]
 for message in st.session_state.messages:
      with st.chat_message(message["role"]):
         st.write(message["content"])
+
 if prompt :=st.chat_input():
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
@@ -66,10 +82,8 @@ if prompt :=st.chat_input():
 if st.session_state.messages[-1]["role"] != "assistant":
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
-                db =  FAISS.load_local("faiss_index", embeddings)
-                docs = db.similarity_search(prompt)
-                chain = ask_question()
-                response = chain({"input_documents": docs, "question": prompt}, return_only_outputs=True, )
+                
+                response = user_input(prompt)
 
                 placeholder = st.empty()
                 full_response = ''
