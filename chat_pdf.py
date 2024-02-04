@@ -15,13 +15,12 @@ os.environ["google_api_key"] = "AIzaSyCU4naBgeVjfrE6l9Vrz7vZCeTDa-VCSkA"
 genai.configure(api_key=google_api_key)
 
 
-def convert_to_txt(pdf_path, start_page=0, end_page=None):
-    reader = PdfReader(pdf_path)
-    if end_page is None:
-        end_page = len(reader.pages)
+def convert_to_txt(pdf_path):
     text = ""
-    for i in range(start_page, end_page):
-        text += reader.pages[i].extract_text()
+    for pdf in pdf_path:
+        pdf_reader = PdfReader(pdf)
+        for page in pdf_reader.pages:
+            text += page.extract_text()
     return text
 
 def convert_text_chunk(text):
@@ -38,7 +37,7 @@ def convert_to_vector(text):
 # new_db = FAISS.load_local("faiss_index", embed_model)
 # print(new_db.search("power", 5))
 
-def ask_question(question):
+def ask_question():
     test_prompt = """
     Answer the question as detailed as possible from the provided context, make sure to provide all the details, if the answer is not in
     provided context just say, "answer is not available in the context", don't provide the wrong answer\n\n
@@ -47,11 +46,11 @@ def ask_question(question):
 
     Answer:
     """
-    model = ChatGoogleGenerativeAI(model="gemini-ultra",
-                                   client = genai.client(),
-                                   temperature = 0.5)
-    prompt = PromptTemplate(test_prompt,input_variables=["context", "question"])
-    chain = load_qa_chain(model, chain_type="stuff", prompt=prompt)
+    model = ChatGoogleGenerativeAI(model="gemini-pro",
+                                   client = genai,
+                                   temperature = 0.3)
+    prompt = PromptTemplate(template=test_prompt,input_variables=["context", "question"])
+    chain = load_qa_chain(llm=model, chain_type="stuff", prompt=prompt)
     return chain
 
     
